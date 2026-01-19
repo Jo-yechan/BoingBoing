@@ -1,41 +1,20 @@
+#include "web.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <sys/un.h>
-#include <pthread.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <ifaddrs.h>
 #include <time.h>
 #include <locale.h>
 
-#define WEB_PORT 8080
-#define CMD_PORT 9090
-#define BUFFER_SIZE 4096
-
-// 전역 변수로 선언하여 signal_handler에서 닫을 수 있게 함
-static int cmd_sock = -1; 
-static int web_sock = -1;
-static volatile int is_run = 1;
-
-static pthread_t web_thread;
-static pthread_t cmd_thread;
-static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-// SSE 클라이언트 정보
-typedef struct {
-    int sock;
-    struct sockaddr_in addr;
-} client_info;
-
-#define MAX_CLIENTS 10
+// 전역 변수 정의
 client_info clients[MAX_CLIENTS];
 int client_count = 0;
+pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+volatile int is_run = 1;
+
+static int cmd_sock = -1; 
+static int web_sock = -1;
 
 // 연결된 SSE 클라이언트들에게만 메시지 브로드캐스트
 void broadcast_message(const char* message) {
@@ -72,7 +51,6 @@ void add_client(int sock, struct sockaddr_in addr) {
         clients[client_count].sock = sock;
         clients[client_count].addr = addr;
         client_count++;
-        // printf("SSE 클라이언트 등록됨 (현재 %d명)\n", client_count);
     } else {
         close(sock);
     }
@@ -187,7 +165,7 @@ void* handle_web_client(void* arg) {
 // 웹 서버 스레드
 void* web_server_thread(void* arg) {
     (void)arg;
-    web_sock = socket(AF_INET, SOCK_STREAM, 0); // 전역 변수 사용
+    web_sock = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr;
     int opt = 1;
     setsockopt(web_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -224,7 +202,7 @@ void* web_server_thread(void* arg) {
 // 명령 서버 스레드
 void* cmd_server_thread(void* arg) {
     (void)arg;
-    cmd_sock = socket(AF_INET, SOCK_STREAM, 0); // 전역 변수 사용 (경고 해결!)
+    cmd_sock = socket(AF_INET, SOCK_STREAM, 0);
     int opt = 1;
     setsockopt(cmd_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     struct sockaddr_in addr = {0};
@@ -248,38 +226,4 @@ void* cmd_server_thread(void* arg) {
     }
     close(cmd_sock);
     return NULL;
-}
-
-void signal_handler(int sig) {
-    (void)sig;
-    is_run = 0;
-    // 종료 시 소켓 닫기
-    if (cmd_sock != -1) close(cmd_sock);
-    if (web_sock != -1) close(web_sock);
-    printf("\n서버 종료.\n");
-    exit(0);
-}
-
-int main() {
-    setlocale(LC_ALL, "ko_KR.UTF-8");
-    signal(SIGINT, signal_handler);
-    
-    system("fuser -k -n tcp 8080 9090 > /dev/null 2>&1");
-
-    pthread_create(&web_thread, NULL, web_server_thread, NULL);
-    pthread_create(&cmd_thread, NULL, cmd_server_thread, NULL);
-
-    printf("\n========================================\n");
-    printf("🚀 서버 실행 중! (Ctrl+C로 종료)\n");
-    printf("1. 웹 접속: 브라우저 주소창에 라즈베리파이 IP:8080\n");
-    printf("2. 메시지 입력: 터미널에 입력 후 엔터\n");
-    printf("========================================\n\n");
-
-    char input[BUFFER_SIZE];
-    while(is_run) {
-        if(fgets(input, sizeof(input), stdin)) {
-            if(strlen(input) > 1) broadcast_message(input);
-        }
-    }
-    return 0;
 }
