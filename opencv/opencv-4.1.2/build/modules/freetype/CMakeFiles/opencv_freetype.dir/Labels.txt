@@ -1,0 +1,19 @@
+# Target labels
+ Extra
+ opencv_freetype
+ Module
+# Source files and their labels
+/home/iam/sub_proj/openCV_face/opencv/opencv_contrib-4.1.2/modules/freetype/include/opencv2/freetype.hpp
+ Extra
+ opencv_freetype
+ Module
+/home/iam/sub_proj/openCV_face/opencv/opencv_contrib-4.1.2/modules/freetype/src/freetype.cpp
+ Extra
+ opencv_freetype
+ Module
+/home/iam/sub_proj/openCV_face/opencv/opencv_contrib-4.1.2/modules/freetype/src/precomp.hpp
+ Extra
+ opencv_freetype
+ Module
+/home/iam/sub_proj/openCV_face/opencv/opencv-4.1.2/build/cvconfig.h
+/home/iam/sub_proj/openCV_face/opencv/opencv-4.1.2/build/opencv2/opencv_modules.hpp
