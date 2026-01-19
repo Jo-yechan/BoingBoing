@@ -1,0 +1,15 @@
+# build files
+*.o
+*.ko
+*.cmd
+*.mod
+*.mod.c
+
+# kernel module files
+Module.symvers
+modules.order
+
+# executables
+servo_app
+servo_random_app
+web_server
