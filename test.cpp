@@ -14,8 +14,8 @@ using namespace httplib;
 // [설정] 서보 트래킹 파라미터
 // ==========================================
 #define DEAD_ZONE 20       // 오차 허용 범위 (픽셀)
-#define KP_X 0.03          // X축 민감도
-#define KP_Y 0.03          // Y축 민감도
+#define KP_X 0.005          // X축 민감도
+#define KP_Y 0.008          // Y축 민감도
 // ★ [수정됨] 각 모터별 범위 분리 설정 ★
 // 18번 핀 (Pan/X축/좌우) 범위: 0 ~ 100
 #define PAN_MIN 0
@@ -25,11 +25,11 @@ using namespace httplib;
 #define TILT_MAX 100        // 너무 위로 안 올라가게 제한
 // 방향 설정 (-1 or 1)
 #define DIR_X -1
-#define DIR_Y 1
+#define DIR_Y -1
 // 서보 제어 변수 (초기값 50, 50)
 int servo_fd = -1;
 double current_pan = 50.0;
-double current_tilt = 50.0;
+double current_tilt = 65.0;
 // OpenCV 변수
 String face_cascade_name = "/usr/share/opencv4/haarcascades/haarcascade_frontalface_alt.xml";
 CascadeClassifier face_cascade;
@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
     }
     // 초기화: 중앙(50, 50)으로 이동.
     // 만약 50이 TILT 범위 밖이라면 초기값을 수정하세요.
-    set_servo_angles(servo_fd, 50, 50);
+    set_servo_angles(servo_fd, (int)current_pan, (int)current_tilt);
     // 2. Cascade 로드
     if (!face_cascade.load(face_cascade_name)) {
         if (!face_cascade.load("haarcascade_frontalface_alt.xml")) {
