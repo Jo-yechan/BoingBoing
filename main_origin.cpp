@@ -7,7 +7,6 @@
 #include "Tracker.h"
 #include "WebStream.h"
 #include "servo.h"
-#include "led.h"       // ★ [필수] LED 헤더 포함
 
 using namespace std;
 
@@ -22,11 +21,6 @@ int main() {
         return -1;
     }
 
-    // ★ [수정 1] ctx에 넣지 않고 독립적으로 초기화
-    if (led_init() < 0) {
-        cout << "Warning: LED init failed (Check /dev/led)" << endl;
-    }
-
     // 초기 위치 설정
     set_servo_angles(ctx.servo_fd, (int)ctx.current_pan, (int)ctx.current_tilt);
 
@@ -34,17 +28,12 @@ int main() {
     thread tracker_thread(process_tracking_loop, &ctx);
     tracker_thread.detach();
 
-    // 4. 웹 서버 시작 (블로킹)
+    // 4. 웹 서버 시작 (여기서 블로킹 됨)
     start_web_server(&ctx, 8080);
 
-    // 5. 종료 처리
+    // 5. 종료 처리 (실제로는 웹서버가 종료되면 도달)
     ctx.is_running = false;
     if (tracker_thread.joinable()) tracker_thread.join();
-    
-    // ★ [수정 2] 인자 없이 깔끔하게 호출
-    led_off();
-    led_close();
-
     close(ctx.servo_fd);
 
     return 0;

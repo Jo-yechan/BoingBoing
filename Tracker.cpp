@@ -1,6 +1,7 @@
 // Tracker.cpp
 #include "Tracker.h"
-#include "servo.h" // 기존 servo.c의 헤더
+#include "servo.h"
+#include "led.h"       // ★ [추가] LED 헤더
 #include <iostream>
 #include <vector>
 #include <unistd.h>
@@ -20,14 +21,12 @@ using namespace cv;
 #define DIR_X -1
 #define DIR_Y -1
 
-// 유틸리티 함수 (내부 사용)
 static double clamp(double value, double min, double max) {
     if (value < min) return min;
     if (value > max) return max;
     return value;
 }
 
-// 서보 업데이트 로직
 static void update_servos(SharedContext* ctx, int error_x, int error_y) {
     bool moved = false;
 
@@ -50,7 +49,6 @@ static void update_servos(SharedContext* ctx, int error_x, int error_y) {
     }
 }
 
-// 메인 트래킹 루프 구현
 void process_tracking_loop(SharedContext* ctx) {
     String face_cascade_name = "/usr/share/opencv4/haarcascades/haarcascade_frontalface_alt.xml";
     CascadeClassifier face_cascade;
@@ -87,13 +85,15 @@ void process_tracking_loop(SharedContext* ctx) {
         int center_x = frame.cols / 2;
         int center_y = frame.rows / 2;
 
+        // ★ [수정] 감지 여부에 따른 LED 제어
         if (!faces.empty()) {
+            led_on();   // 인자 없이 호출
+            
             Rect face = faces[0];
             rectangle(frame, face, Scalar(0, 255, 0), 2);
             
             int obj_x = face.x + face.width / 2;
             int obj_y = face.y + face.height / 2;
-
             int errX = obj_x - center_x;
             int errY = obj_y - center_y;
 
@@ -101,9 +101,11 @@ void process_tracking_loop(SharedContext* ctx) {
             line(frame, Point(center_x, center_y), Point(obj_x, obj_y), Scalar(0, 255, 255), 2);
 
             update_servos(ctx, errX, errY);
+        } 
+        else {
+            led_off();  // 인자 없이 호출
         }
 
-        // 공유 프레임 업데이트
         {
             lock_guard<mutex> lock(ctx->frame_mutex);
             ctx->latest_frame = frame.clone();
