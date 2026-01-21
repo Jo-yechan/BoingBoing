@@ -1,42 +1,74 @@
-# 커널 모듈
-obj-m += servo_driver.o
+# ==========================================
+# 1. 설정 변수
+# ==========================================
 
-# 사용자 앱 1: 수동 제어
-APP_MAIN = servo_app
-APP_MAIN_SRCS = servo_app.c servo.c
-APP_MAIN_OBJS = $(APP_MAIN_SRCS:.c=.o)
+# 최종 실행 파일 이름
+TARGET_APP = auto_tracker
+# 커널 모듈 이름 (확장자 제외)
+TARGET_MOD = servo_driver
 
-# 사용자 앱 2: 랜덤 제어 (추가됨)
-APP_RANDOM = servo_random_app
-APP_RANDOM_SRCS = servo_random_app.c servo.c
-APP_RANDOM_OBJS = $(APP_RANDOM_SRCS:.c=.o)
+# 빌드 부산물(.o 파일 등)을 모아둘 폴더
+BUILD_DIR = build
 
+# 소스 파일 목록
+# (C++ 파일과 C 파일을 구분해서 등록)
+SRCS_CPP = main.cpp Tracker.cpp WebStream.cpp
+SRCS_C   = servo.c
+
+# 오브젝트 파일 목록 (소스 파일을 build 폴더 경로의 .o 파일로 매핑)
+# 예: main.cpp -> build/main.o
+OBJS  = $(addprefix $(BUILD_DIR)/, $(SRCS_CPP:.cpp=.o))
+OBJS += $(addprefix $(BUILD_DIR)/, $(SRCS_C:.c=.o))
+
+# 컴파일러 및 플래그 설정
+CXX      = g++
+CXXFLAGS = -I. $(shell pkg-config --cflags opencv4) -Wall -O2
+LDFLAGS  = $(shell pkg-config --libs opencv4) -lpthread
+
+# 커널 모듈 빌드 경로 설정
 KDIR := /lib/modules/$(shell uname -r)/build
-PWD := $(shell pwd)
+PWD  := $(shell pwd)
+obj-m += $(TARGET_MOD).o
 
-.PHONY: all clean
+# ==========================================
+# 2. 빌드 규칙
+# ==========================================
 
-# 'make' 입력 시 모듈과 두 앱 모두 빌드
-all: modules $(APP_MAIN) $(APP_RANDOM)
+.PHONY: all clean modules app
 
-# 커널 모듈 빌드
+# 'make' 입력 시 실행되는 기본 타겟
+all: modules app
+
+# 2-1. 커널 모듈 빌드
 modules:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-# 사용자 앱 1 빌드 (servo_app)
-$(APP_MAIN): $(APP_MAIN_OBJS)
-	gcc -o $(APP_MAIN) $(APP_MAIN_OBJS)
+# 2-2. C++ 앱 빌드 (auto_tracker)
+app: $(TARGET_APP)
 
-# 사용자 앱 2 빌드 (servo_random)
-$(APP_RANDOM): $(APP_RANDOM_OBJS)
-	gcc -o $(APP_RANDOM) $(APP_RANDOM_OBJS)
+# 최종 실행 파일 링크 (오브젝트 파일들을 합침)
+$(TARGET_APP): $(OBJS)
+	@echo "  LINK    $@"
+	@$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
-# 공통 오브젝트 파일 규칙 (.c -> .o)
-%.o: %.c
-	gcc -c $< -o $@
+# C++ 소스 컴파일 규칙 (build 폴더에 .o 생성)
+$(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(BUILD_DIR)
+	@echo "  CXX     $<"
+	@$(CXX) -c $< -o $@ $(CXXFLAGS)
 
-# 정리 (모듈 및 두 앱 모두 삭제)
+# C 소스 컴파일 규칙 (build 폴더에 .o 생성)
+# servo.c를 C++ 프로젝트와 섞어 쓰므로 g++로 컴파일하여 링크 에러 방지
+$(BUILD_DIR)/%.o: %.c
+	@mkdir -p $(BUILD_DIR)
+	@echo "  CXX(C)  $<"
+	@$(CXX) -c $< -o $@ $(CXXFLAGS)
+
+# ==========================================
+# 3. 정리 (Clean)
+# ==========================================
 clean:
+	@echo "Cleaning up..."
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	$(RM) $(APP_MAIN) $(APP_MAIN_OBJS)
-	$(RM) $(APP_RANDOM) $(APP_RANDOM_OBJS)
+	rm -rf $(BUILD_DIR)
+	rm -f $(TARGET_APP)
